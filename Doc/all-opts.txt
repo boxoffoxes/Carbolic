@@ -1,0 +1,115 @@
+-aa-eval                                   - Exhaustive Alias Analysis Precision Evaluator
+-adce                                      - Aggressive Dead Code Elimination
+-always-inline                             - Inliner for always_inline functions
+-argpromotion                              - Promote 'by reference' arguments to scalars
+-basicaa                                   - Basic Alias Analysis (stateless AA impl)
+-basiccg                                   - Basic CallGraph Construction
+-block-freq                                - Block Frequency Analysis
+-block-placement                           - Profile Guided Basic Block Placement
+-branch-prob                               - Branch Probability Analysis
+-break-crit-edges                          - Break critical edges in CFG
+-codegenprepare                            - Optimize for code generation
+-constmerge                                - Merge Duplicate Global Constants
+-constprop                                 - Simple constant propagation
+-correlated-propagation                    - Value Propagation
+-count-aa                                  - Count Alias Analysis Query Responses
+-dce                                       - Dead Code Elimination
+-deadargelim                               - Dead Argument Elimination
+-debug-aa                                  - AA use debugger
+-die                                       - Dead Instruction Elimination
+-domfrontier                               - Dominance Frontier Construction
+-domtree                                   - Dominator Tree Construction
+-dse                                       - Dead Store Elimination
+-early-cse                                 - Early CSE
+-functionattrs                             - Deduce function attributes
+-globaldce                                 - Dead Global Elimination
+-globalopt                                 - Global Variable Optimizer
+-globalsmodref-aa                          - Simple mod/ref analysis for globals
+-gvn                                       - Global Value Numbering
+-indvars                                   - Induction Variable Simplification
+-inline                                    - Function Integration/Inlining
+-insert-edge-profiling                     - Insert instrumentation for edge profiling
+-insert-gcov-profiling                     - Insert instrumentation for GCOV profiling
+-insert-optimal-edge-profiling             - Insert optimal instrumentation for edge profiling
+-insert-path-profiling                     - Insert instrumentation for Ball-Larus path profiling
+-instcombine                               - Combine redundant instructions
+-instcount                                 - Counts the various types of Instructions
+-instnamer                                 - Assign names to anonymous instructions
+-instsimplify                              - Remove redundant instructions
+-internalize                               - Internalize Global Symbols
+-intervals                                 - Interval Partition Construction
+-ipconstprop                               - Interprocedural constant propagation
+-ipsccp                                    - Interprocedural Sparse Conditional Constant Propagation
+-iv-users                                  - Induction Variable Users
+-jump-threading                            - Jump Threading
+-lazy-value-info                           - Lazy Value Information Analysis
+-lcssa                                     - Loop-Closed SSA Form Pass
+-lda                                       - Loop Dependence Analysis
+-libcall-aa                                - LibCall Alias Analysis
+-licm                                      - Loop Invariant Code Motion
+-lint                                      - Statically lint-checks LLVM IR
+-loop-deletion                             - Delete dead loops
+-loop-extract                              - Extract loops into new functions
+-loop-extract-single                       - Extract at most one loop into a new function
+-loop-idiom                                - Recognize loop idioms
+-loop-instsimplify                         - Simplify instructions in loops
+-loop-reduce                               - Loop Strength Reduction
+-loop-rotate                               - Rotate Loops
+-loop-simplify                             - Canonicalize natural loops
+-loop-unroll                               - Unroll loops
+-loop-unswitch                             - Unswitch loops
+-loops                                     - Natural Loop Information
+-lower-expect                              - Lower 'expect' Intrinsics
+-loweratomic                               - Lower atomic intrinsics to non-atomic form
+-lowerinvoke                               - Lower invoke and unwind, for unwindless code generators
+-lowerswitch                               - Lower SwitchInst's to branches
+-mem2reg                                   - Promote Memory to Register
+-memcpyopt                                 - MemCpy Optimization
+-memdep                                    - Memory Dependence Analysis
+-mergefunc                                 - Merge Functions
+-mergereturn                               - Unify function exit nodes
+-module-debuginfo                          - Decodes module-level debug info
+-no-aa                                     - No Alias Analysis (always returns 'may' alias)
+-no-path-profile                           - No Path Profile Information
+-no-profile                                - No Profile Information
+-objc-arc                                  - ObjC ARC optimization
+-objc-arc-aa                               - ObjC-ARC-Based Alias Analysis
+-objc-arc-contract                         - ObjC ARC contraction
+-objc-arc-expand                           - ObjC ARC expansion
+-partial-inliner                           - Partial Inliner
+-path-profile-loader                       - Load path profile information from file
+-path-profile-verifier                     - Compare the path profile derived edge profile against the edge profile.
+-postdomtree                               - Post-Dominator Tree Construction
+-preverify                                 - Preliminary module verification
+-print-alias-sets                          - Alias Set Printer
+-print-callgraph                           - Print a call graph
+-print-callgraph-sccs                      - Print SCCs of the Call Graph
+-print-cfg-sccs                            - Print SCCs of each function CFG
+-print-dbginfo                             - Print debug info in human readable form
+-print-dom-info                            - Dominator Info Printer
+-print-externalfnconstants                 - Print external fn callsites passed constants
+-print-function                            - Print function to stderr
+-print-memdeps                             - Print MemDeps of function
+-print-module                              - Print module to stderr
+-print-used-types                          - Find Used Types
+-prune-eh                                  - Remove unused exception handling info
+-reassociate                               - Reassociate expressions
+-reg2mem                                   - Demote all values to stack slots
+-regions                                   - Detect single entry single exit regions
+-scalar-evolution                          - Scalar Evolution Analysis
+-scalarrepl                                - Scalar Replacement of Aggregates (DT)
+-scalarrepl-ssa                            - Scalar Replacement of Aggregates (SSAUp)
+-sccp                                      - Sparse Conditional Constant Propagation
+-scev-aa                                   - ScalarEvolution-based Alias Analysis
+-simplify-libcalls                         - Simplify well-known library calls
+-simplifycfg                               - Simplify the CFG
+-sink                                      - Code sinking
+-strip                                     - Strip all symbols from a module
+-strip-dead-debug-info                     - Strip debug info for unused symbols
+-strip-dead-prototypes                     - Strip Unused Function Prototypes
+-strip-debug-declare                       - Strip all llvm.dbg.declare intrinsics
+-strip-nondebug                            - Strip all symbols, except dbg symbols, from a module
+-tailcallelim                              - Tail Call Elimination
+-targetdata                                - Target Data Layout
+-targetlibinfo                             - Target Library Information
+-tbaa                                      - Type-Based Alias Analysis
