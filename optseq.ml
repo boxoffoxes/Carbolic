@@ -1,6 +1,9 @@
 open Str 
 open Unix
 
+
+(** {1 Utility functions} *)
+
 let read_file_to_list filename =
     let lines = ref [] in
     let chan = open_in filename in
@@ -13,6 +16,20 @@ let read_file_to_list filename =
         close_in chan;
         List.rev !lines
 ;;
+
+
+let run_child_process args =
+    (* TODO: Don't forget that cmd needs to be duplicated as args.(0) for execv! *)
+    let cmd = args.(0) in
+    let pid = fork () in
+    match pid with
+    | 0 -> Unix.execv cmd args ;
+    | -1 -> raise ( Failure "Failed to run program!" )
+    | _ -> ignore ( wait () ) ;
+;;
+
+
+(** {1 Generating random option lists} *)
 
 let extract_opts l =
     let rex = Str.regexp " +" in
@@ -33,24 +50,13 @@ let rec n_random_opts n opts =
 ;;
 
 
-(* let optimise opt =
-;; *)
+(** {1 Benchmarking compiled executables} *)
 
-
-let run_child_process cmd args =
-    (* TODO: Don't forget that cmd needs to be duplicated as args.(0) for execv! *)
-    let pid = fork () in
-    match pid with
-    | 0 -> Unix.execv cmd args ;
-    | -1 -> raise ( Failure "Failed to run program!" )
-    | _ -> ignore ( wait () ) ;
-;;
-
-let benchmark_prog cmd args =
+let benchmark_prog args =
     let a = fork () in
     match a with
     | 0 -> (
-        run_child_process cmd args ;
+        run_child_process args ;
         let t = Unix.times () in
         print_string "( " ;
         print_float t.Unix.tms_cstime ;
@@ -64,17 +70,16 @@ let benchmark_prog cmd args =
 ;;
 
 
+(** {1 Program entry point} *)
+
 let main () =
     let lines = read_file_to_list "Doc/all-opts.txt" in
     let opts = extract_opts lines in
     Random.self_init () ;
     ignore ( List.map print_endline ( n_random_opts 25 opts ) ) ;
-    print_newline ;
+    print_newline ();
 
-    benchmark_prog "/bin/ls" [| "ls" ; "-al" |] ;
-    benchmark_prog "/usr/bin/sleep" [| "sleep" ; "3s" |] ;
-    benchmark_prog "/bin/ls" [| "ls" ; "-al" |] ;
-    benchmark_prog "/bin/ls" [| "ls" ; "-al" |] ;
+    benchmark_prog [| "/bin/ls" ; "-al" |] ;
 ;;
 
 (* let opts = extract_opts <<- read_file_to_list "Doc/all-opts.txt" ;;
