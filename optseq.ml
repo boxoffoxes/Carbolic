@@ -10,11 +10,13 @@ type settings = {
 }
 
 
-let default_opt_src = "optimised.ll"
-let default_opt_cmd = [| "/usr/bin/opt" ; "-S" ; "-o" ; optimised_src |]
-
-let default_bin = "a.out"
-let compile_cmd = [| "" ; "-o" ; binary |]
+let default_settings = {
+    src = "optimised.ll" ;
+    bin = "a.out" ;
+    opt_src = "" ;
+    opt_cmd = [| "/usr/bin/opt" ; "-S" ; "-o" ; optimised_src |] ;
+    compile_cmd = [| "" ; "-o" ; binary |] ;
+}
 
 (** {1 Utility functions} *)
 
@@ -143,8 +145,14 @@ let benchmark_prog args =
 
 (** {1 Program entry point and commandline parsing} *)
 
-let parse_args () =
-    
+let rec parse_args ?(ss=default_settings) args = match args with
+    | [] -> ss
+    | s :: [] -> { ss with src = s }
+    | "-o" :: arg :: args' -> 
+        parse_args ~ss:{ ss with bin = arg } args'
+    | "-l" :: arg :: args' -> 
+        parse_args ~ss:{ ss with opt_src = arg } args'
+    | _ -> usage () ; ss (* this is a hack to fool the type system *)
 ;;
 
 let main () =
