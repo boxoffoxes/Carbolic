@@ -2,20 +2,32 @@ open Str
 open Unix
 
 type settings = {
-    src:string ;
-    bin:string ;
-    opt_src:string ;
-    opt_cmd:string array ;
-    compile_cmd:string array ;
+    mutable src:string ;
+    mutable asm:string ;
+    mutable obj:string ;
+    mutable bin:string ;
+    mutable opt_src:string ;
+    mutable opt_cmd:string array ;
+    mutable opt_lib:string ;
+    mutable work_dir:string ;
+    mutable compile_cmd:string array ;
+    mutable verbose:bool ;
 }
 
 
-let default_settings = {
-    src = "optimised.ll" ;
-    bin = "a.out" ;
-    opt_src = "" ;
-    opt_cmd = [| "/usr/bin/opt" ; "-S" ; "-o" ; optimised_src |] ;
-    compile_cmd = [| "" ; "-o" ; binary |] ;
+let _optimised_src = "optimised.ll"
+let _binary = "a.out"
+let settings = {
+    src = "" ;
+    asm = "optimised.s" ;
+    obj = "optimised.o" ;
+    bin = _binary ;
+    opt_src = _optimised_src ;
+    opt_cmd = [| "/usr/bin/opt" ; "-S" ; "-o" ; _optimised_src |] ;
+    opt_lib = "Doc/all-opts.txt" ;
+    work_dir = "./work" ;
+    compile_cmd = [| "" ; "-o" ; _binary |] ;
+    verbose = false ;
 }
 
 (** {1 Utility functions} *)
@@ -33,6 +45,9 @@ let read_file_to_list filename =
         List.rev !lines
 ;;
 
+let create_pathname_from_opts opts = 
+    Digest.to_hex ( Digest.string ( String.concat " " (Array.to_list opts ) ) )
+;;
 
 let run_child_process args =
     (* Get the name of the executable from the first arg *)
@@ -44,6 +59,10 @@ let run_child_process args =
     | _ -> ignore ( wait () ) ;
 ;;
 
+let create_path path =
+    Unix.mkdir path 0o755 ;
+;;
+
 let show_commandline a =
     let print_elem = function word -> print_string word ; print_string " " ; in
     Array.iter print_elem a ;
@@ -53,6 +72,15 @@ let show_commandline a =
 
 let checksum file =
     Digest.file file
+;;
+
+let with_path path f =
+    let cwd = Sys.getcwd () in
+    create_path path ;
+    Sys.chdir path ;
+    let v = f () in
+    Sys.chdir cwd ;
+    v
 ;;
 
 
@@ -81,18 +109,6 @@ let rec n_random_opts n optlib =
 
 (** {1 Generating optimised binaries} *)
 
-let optimise opts =
-    let cmdline = Array.concat [ opt_cmd ; opts ] in
-    run_child_process cmdline ;
-    checksum optimised_src
-;;
-
-let compile () =
-    let cmdline = compile_cmd in
-    run_child_process cmdline ;
-    checksum binary
-;;
-
 
 (** {1 Running simulations} *)
 
@@ -102,8 +118,23 @@ let rec run_simulation optlib n k static_opts = match n with
     | 0 -> ()
     | _ -> (
         let ropts = n_random_opts k optlib in
-        let cmdline = Array.concat [ opt_cmd ; [| static_opts |] ; ropts ] in
-        show_commandline cmdline ;
+        let precmd = [| "/bin/ln" ; "-s" ; String.concat "" [ "../" ; settings.src ] ; "./" |] in
+        let optcmd = Array.concat [
+            [| "/usr/bin/opt" ; "-S" |] ;
+            static_opts ; ropts ; 
+            [| "-o" ; settings.opt_src ; settings.src |] 
+        ] in
+        let cmpcmd = [| "/usr/bin/clang" ; "-O0" ; "-pipe" ; "-lc" ; "-lm" ; "-o" ; settings.bin ; settings.opt_src |] in
+(*        let asmcmd = [| "/usr/bin/as" ; "-o" ; settings.obj ; settings.asm |] in
+        let lnkcmd = [| "/usr/bin/clang" ; "-O0" ; "-o" ; settings.bin ; "-lc" ; "-lm" ; settings.obj |] in *)
+        let compile () = 
+            run_child_process precmd ;
+            run_child_process optcmd ;
+            run_child_process cmpcmd ; 
+        in
+        let wd = create_pathname_from_opts ropts in
+
+        with_path wd compile ;
         run_simulation optlib (n-1) k static_opts ;
     )
 ;;
@@ -112,7 +143,9 @@ let rec run_simulation optlib n k static_opts = match n with
  * @param optlib, and including @param static_opts at the head of the list of
  * optimisations for every simulation. *)
 let run_simulations optlib static_opts k n =
-    let sim = run_simulation optlib n k in
+    let sim pass = run_simulation optlib n k [| pass |] in
+    let cwd = Sys.getcwd () in
+    Sys.chdir settings.work_dir ;
     Array.iter sim optlib ;
 ;;
 
@@ -145,22 +178,42 @@ let benchmark_prog args =
 
 (** {1 Program entry point and commandline parsing} *)
 
-let rec parse_args ?(ss=default_settings) args = match args with
-    | [] -> ss
-    | s :: [] -> { ss with src = s }
+let usage () =
+    List.iter print_string [
+        "Usage: " ; Sys.argv.(0) ; " [args] <source_file.ll>\n" ;
+        "Where [args] can be: \n" ;
+        "\t-d working_dir   (default: " ; settings.work_dir ; ")\n" ;
+        "\t-o binary_name   (default: " ; settings.bin ; ")\n" ;
+        "\t-l opt_library   (default: " ; settings.opt_lib ; ")\n" ;
+        "\t-n optimised_src (default: " ; settings.opt_src ; ")\n" ;
+    ] ;
+    exit 0;
+;;
+
+let rec parse_args args = match args with
+    | [] -> usage () ;
+    | s :: [] -> settings.src <- s ;
     | "-o" :: arg :: args' -> 
-        parse_args ~ss:{ ss with bin = arg } args'
+        settings.bin <- arg ;
+        parse_args args'
     | "-l" :: arg :: args' -> 
-        parse_args ~ss:{ ss with opt_src = arg } args'
-    | _ -> usage () ; ss (* this is a hack to fool the type system *)
+        settings.opt_lib <- arg ;
+        parse_args args'
+    | "-n" :: arg :: args' ->
+        settings.opt_src <- arg ;
+    | "-d" :: arg :: args' -> 
+        settings.work_dir <- arg ;
+    | "-v" :: args' ->
+        settings.verbose <- true ;
+    | _ -> usage () ; (* this is a hack to fool the type system *)
 ;;
 
 let main () =
-    let (optlib, ll_src) = parse_args  in
     let cksums = Hashtbl.create 1000 in
+    let args = List.tl (Array.to_list Sys.argv) in
+    parse_args args ;
+    let optlib = load_optlib settings.opt_lib in
     Random.self_init () ;
-
-    benchmark_prog [| "/bin/ls" ; "-al" |] ;
 
     run_simulations optlib [| "-lint" ; "-roller" |]  10 100 ;
 ;;
