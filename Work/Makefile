@@ -1,6 +1,9 @@
 PASSES=
 
 
+a.out : countdown.hs
+	ghc -O0 -o $@ -fllvm -fforce-recomp $(PASSES) $<
+
 #a.out : optimised.ll
 #	clang -o $@ $<
 
