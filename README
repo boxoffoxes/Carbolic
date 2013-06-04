@@ -1,0 +1,14 @@
+% README
+% Glyn Faulkner
+% 2013-06-03
+
+
+BUBONIC - The Borderline-Unusably-Broken Optimising Novel Iterative Compiler
+
+CARBOLIC
+Contrived Acronym for a Rather Basic Optimising LLVM-based Iterative Compiler
+
+DIABOLIC
+D I A Basic Optimising LLVM-based Iterative Compiler
+
+<!-- vim: set lbr spell filetype=pdc: -->
