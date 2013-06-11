@@ -93,22 +93,33 @@ let read_performance file =
 
 ;;
 
+let rec benchmark_n_times cmd n =
+    match n with 
+    | 0 -> 
+        let tm = Unix.times () in
+        let time = (tm.Unix.tms_cstime +. tm.Unix.tms_cutime ) in
+        time
+    | _ -> 
+        match run_child_process cmd with
+        | true -> 
+            benchmark_n_times cmd (n-1) 
+        | false -> 
+            exit 0 ; 
+;;
+
 let benchmark binary =
     let a = fork () in
     match a with
     | 0 -> (
         let path = Sys.getcwd () in
         let cmd = [| String.concat "/" [path ; binary] |] in
-        match run_child_process cmd with
-        | true ->
-            let tm = Unix.times () in
-            let fh = open_out_gen [Open_append ; Open_creat] 0o644 "perf.txt" in
-            output_string fh (string_of_float (tm.Unix.tms_cstime +. tm.Unix.tms_cutime )) ;
-            output_string fh "\n" ;
-            close_out fh ;
-            exit 0 ; 
-        | false -> 
-            exit 0 ; 
+        let n = 3 in
+        let tm = ( benchmark_n_times cmd n ) /. (float_of_int n) in
+        let fh = open_out_gen [Open_append ; Open_creat] 0o644 "perf.txt" in
+        output_string fh (string_of_float tm) ;
+        output_string fh "\n" ;
+        close_out fh ;
+        exit 0 ; 
     )
     | -1 -> raise ( Failure "Failed to fork a child process" )
     | _  -> ignore ( wait () ) ;
@@ -162,14 +173,21 @@ let pick_best results =
     fst ( List.hd ( List.filter ignore_zero rs ) )
 ;;
 
+let rec new_static_opts results static_opts =
+        let best = pick_best results in
+        let static_opts' = best :: static_opts in
+        let candidate_res =  compile_and_benchmark (dir_of_opts static_opts') static_opts' in
+        match candidate_res with (* check the candidate actually runs! *)
+        | None -> new_static_opts (List.tl results) static_opts
+        | _ -> static_opts'
+;;
+
 let rec compilation_cycle optlib depth static_opts = match depth with 
     | 0 -> exit 0; 
     | _ -> 
         let simulate opt = run_simulations [] depth 50 (opt :: static_opts) in
         let results = List.map simulate optlib in
-        let best = pick_best results in
-        let static_opts' = best :: static_opts in
-        ignore ( compile_and_benchmark (dir_of_opts static_opts') static_opts' ) ;
+        let static_opts' = new_static_opts results static_opts in
         compilation_cycle optlib (depth-1) static_opts'
 ;;
 
