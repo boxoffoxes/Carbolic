@@ -7,6 +7,7 @@ open Unix
  * 
  *)
 
+
 let optlib = [ "-adce" ; "-basicaa" ; "-basiccg" ; "-constmerge" ;
     "-correlated-propagation" ; "-deadargelim" ; "-domtree" ; 
     "-dse" ; "-early-cse" ; "-functionattrs" ; "-globalopt" ; 
@@ -21,6 +22,51 @@ let optlib = [ "-adce" ; "-basicaa" ; "-basiccg" ; "-constmerge" ;
     "-strip-dead-prototypes" ; "-tailcallelim" ; "-targetlibinfo" ; 
     "-tbaa" ; "-verify" ]
 ;;
+
+type mode = Random | TreeSample | HillClimb | MCTS
+
+let shuffle_list l =
+    let srt _ _ = ( Random.int 10 <= Random.int 10 ) in
+    List.sort srt l
+;;
+
+
+module MCTS = struct
+    type node = {
+        untried : string list ;
+        children : node list ;
+        static_opts : string list ;
+        visits : int ;
+        wins : int ;
+        perf : float ;
+    } ;;
+
+    let ucb1 parent node = 
+        (* UCB1 algorithm *)
+        node.wins /. node.visits
+            +. sqrt( 2.0 *. log(parent.visits) /.  node.visits )
+    ;;
+
+    let new_node () =
+        let unvisited = shuffle_list optlib in
+        { untried = unvisited ; children = [] ; static_opts = [] ; visits = 0 ; wins = 0 ; perf = 0.0 }
+    ;;
+
+    let select_child node =
+        let ucb = ucb1 node in
+        let srt n1 n2 = (ucb n1 > ucb n2) in
+        let sorted_children = List.sort srt node.children
+        List.head sorted_children ;;
+    ;;
+
+    let rec uct node depth =
+        
+    ;;
+end
+
+
+
+
 
 let cksums = Hashtbl.create 1000
 
@@ -138,7 +184,7 @@ let compile_and_benchmark dir opts =
 
 let dir_of_opts opts = 
     let strip_leading_dash str = String.sub str 1 (String.length str - 1) in
-    String.concat "/" ( List.map strip_leading_dash (List.rev opts) )
+    String.concat "/" ( "./" :: List.map strip_leading_dash (List.rev opts) )
 ;;
 
 let hash lst = 
@@ -191,11 +237,56 @@ let rec compilation_cycle optlib depth static_opts = match depth with
         compilation_cycle optlib (depth-1) static_opts'
 ;;
 
+let random_compilation_cycle depth n = match n with 
+    | 0 -> exit 0;
+    | _ ->
+            run_simulations [] depth n [] ;
+;;
+
+let rec dumb_hillclimb_compilation_cycle depth static_opts = match depth with
+    | 0 -> exit 0 ;
+    | _ -> 
+        let simulate opt = run_simulations [] 0 1 (opt :: static_opts) in
+        let results = List.map simulate optlib in
+        let static_opts' = new_static_opts results static_opts in
+        dumb_hillclimb_compilation_cycle (depth-1) static_opts'
+;;
+
+(* let rec hill_climbing_compilation_cycle  = 
+;; *)
+
+let usage () =
+    List.iter print_string [
+        "Usage: " ; Sys.argv.(0) ; " [args]\n" ;
+        "Where [args] can be: \n" ;
+        "\t--random      Use random search" ;
+        "Default search strategy is tree descent with sampling" ;
+    ] ;
+    exit 0;
+;;
+
+let rec parse_args args = match args with
+    | []               -> TreeSample
+    | "--random" :: [] -> Random
+    | "--hill" :: []   -> HillClimb
+    | "--mcts" :: []   -> MCTS
+    | _                -> usage () ;
+;;
 
 let main () = 
     Random.self_init () ;
-    let _ = compilation_cycle optlib 10 [] in
-    exit 0 ;
+    let mode = parse_args ( List.tl ( Array.to_list Sys.argv)) in
+    match mode with
+        | TreeSample ->
+            let _ = compilation_cycle optlib 10 [] in
+            exit 0 ;
+        | Random -> 
+            let _ = random_compilation_cycle 10 23500 in
+            exit 0 ;
+        | HillClimb ->
+            let _ = dumb_hillclimb_compilation_cycle 10 [] in
+            exit 0 ;
+        | _ -> usage () ;
 ;;
 
 main () ;
