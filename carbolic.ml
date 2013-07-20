@@ -26,44 +26,9 @@ let optlib = [ "-adce" ; "-basicaa" ; "-basiccg" ; "-constmerge" ;
 type mode = Random | TreeSample | HillClimb | MCTS
 
 let shuffle_list l =
-    let srt _ _ = ( Random.int 10 <= Random.int 10 ) in
+    let srt _ _ = compare (Random.int 10) (Random.int 10) in
     List.sort srt l
 ;;
-
-
-module MCTS = struct
-    type node = {
-        untried : string list ;
-        children : node list ;
-        static_opts : string list ;
-        visits : int ;
-        wins : int ;
-        perf : float ;
-    } ;;
-
-    let ucb1 parent node = 
-        (* UCB1 algorithm *)
-        node.wins /. node.visits
-            +. sqrt( 2.0 *. log(parent.visits) /.  node.visits )
-    ;;
-
-    let new_node () =
-        let unvisited = shuffle_list optlib in
-        { untried = unvisited ; children = [] ; static_opts = [] ; visits = 0 ; wins = 0 ; perf = 0.0 }
-    ;;
-
-    let select_child node =
-        let ucb = ucb1 node in
-        let srt n1 n2 = (ucb n1 > ucb n2) in
-        let sorted_children = List.sort srt node.children
-        List.head sorted_children ;;
-    ;;
-
-    let rec uct node depth =
-        
-    ;;
-end
-
 
 
 
@@ -251,6 +216,166 @@ let rec dumb_hillclimb_compilation_cycle depth static_opts = match depth with
         let static_opts' = new_static_opts results static_opts in
         dumb_hillclimb_compilation_cycle (depth-1) static_opts'
 ;;
+
+
+module MCTS = struct
+    type move = string
+    type state = { visits : int ; score : float ; moves : move list }
+    type mctree = 
+        | Unexplored of state * mctree list * move list
+        | Explored   of state * mctree list
+        | Terminal   of state
+    ;;
+
+    let max_depth = 10
+    let max_iter = (List.length optlib) * 8
+    
+    let get_state node =
+        match node with
+        | Unexplored (st, _, _)
+        | Explored   (st, _)
+        | Terminal    st         -> st
+    ;;
+    let get_children node =
+        match node with
+        | Unexplored (_, ch, _)
+        | Explored   (_, ch)     -> ch
+        | Terminal    _          -> raise (Failure "No children")
+    ;;
+    let get_visits node =
+        let st = get_state node in
+        st.visits
+    ;;
+
+    let string_of_move move = move
+    let move_of_node n =
+        let st = get_state n in
+        List.hd st.moves
+    ;;
+
+    let rec show_tree tree =
+        let st = get_state tree in
+        let pad = String.make (List.length st.moves) '\t' in
+        let node = match st.moves with
+            | []     -> "[]" ;
+            | m :: _ -> string_of_move m 
+        in
+        Printf.printf "%s%s (%d %f)\n" pad node st.visits st.score ;
+        match tree with
+        | Terminal _            -> ()
+        | Unexplored (_, ch, _)
+        | Explored   (_, ch)    ->
+                ignore (List.map show_tree ch)
+    ;;
+
+
+    let calculate_uct parent_state child = 
+        let st = get_state child in
+        let visits = float_of_int st.visits in
+        let score = st.score in
+        score /. visits +. sqrt ( 2.0 *. log (float_of_int parent_state.visits /. visits) )
+    ;;
+    let uct_select_child parent_st ns =
+        let pairs = List.combine ( List.map (calculate_uct parent_st) ns ) ns in
+        let uct_sort_nodes n1 n2 = compare (fst n1) (fst n2) in
+        snd ( List.hd ( List.rev ( List.sort uct_sort_nodes pairs ) ) )
+    ;;
+    let replace_child children old nw =
+        let replace old nw node = 
+            match node == old with
+            | true -> nw
+            | false -> node
+        in
+        List.map (replace old nw) children
+    ;;
+    let update_state node score =
+        let st = get_state node in
+        let st' = { st with score = st.score +. score ; visits = st.visits + 1 } in
+        match node with
+        | Terminal _             -> Terminal st'
+        | Explored (_, ch)       -> Explored (st', ch)
+        | Unexplored (_, ch, un) -> Unexplored (st', ch, un)
+    ;;
+
+    let pick_untried_move (x::xs) = (x, xs)  (* hack: relies on possible moves being shuffled
+    during initialisation *)
+    let rnd_mv = random_opt
+    let n_rnd_mvs = k_random_opts
+
+    let run_simulation node =
+        let st = get_state node in
+        let static_opts = st.moves in
+        let len = max_depth - (List.length static_opts) in
+        let result = List.hd (run_simulations [] max_depth 1 static_opts) in
+        result
+    ;;
+    let available_moves () =
+        shuffle_list optlib
+    ;;
+    let new_node st mv =
+        let moves = mv :: st.moves in
+        let state = { visits=0 ; score=0.0 ; moves = mv::st.moves } in
+        match List.length moves with
+        | n when n == max_depth -> 
+                Terminal state
+        | _ ->
+                Unexplored (state, [], available_moves ())
+    ;;
+    let do_random_move node =
+        match node with
+        | Unexplored (st, children, untried) -> 
+                let move, untried' = pick_untried_move untried in
+                let child = new_node st move in
+                let score = run_simulation child in
+                let child' = update_state child score in
+                child', untried', score
+        | _ -> raise ( Failure "Next move is only valid for Unexplored nodes" )
+    ;;
+    let rec next_move node =
+        match node with
+        | Terminal st ->
+                let score = run_simulation node in
+                (update_state node score), score
+        | Explored (st, children) ->
+                let child = uct_select_child st children in
+                let child', score = next_move in
+                let children' = replace_child children child child' in
+                let st' = get_state (update_state node score) in
+                Explored (st', children), score
+        | Unexplored (st, children, untried) ->
+                let new_child, untried', score = do_random_move node in
+                let st' = get_state (update_state node score) in
+                let children' = new_child :: children in
+                match children', untried' with
+                | _ , [] -> Explored   (st', children'), score
+                | _      -> Unexplored (st', children', untried'), score
+    ;;
+
+    let decide node =
+        let children = get_children node in
+        let srtfun a b = compare (get_visits a) (get_visits b) in
+        List.hd ( List.rev (List.sort srtfun children) )
+    ;;
+
+    let rec uct root n =
+        match n with
+        | 0 ->
+                if debug then show_tree root ;
+                decide root
+        | _ ->
+                let root' = fst (next_move root) in
+                uct root' (n-1)
+    ;;
+    let rec choose_moves rootnode k =
+        match k with
+        | 0 -> []
+        | _ -> 
+                let best_node = uct rootnode max_iter in
+                let mv = move_of_node best_node in
+                mv :: choose_moves best_node (k-1)
+    ;;
+end
+
 
 (* let rec hill_climbing_compilation_cycle  = 
 ;; *)
