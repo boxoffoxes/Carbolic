@@ -218,15 +218,16 @@ let rec dumb_hillclimb_compilation_cycle depth static_opts = match depth with
 ;;
 
 
-module MCTS = struct
-    type move = string
-    type state = { visits : int ; score : float ; moves : move list }
+type move = string
+type state = { visits : int ; score : float ; moves : move list }
+module MCTS = struct (* this should be generalised using an Ocaml functor *)
     type mctree = 
         | Unexplored of state * mctree list * move list
         | Explored   of state * mctree list
         | Terminal   of state
     ;;
 
+    let debug = false
     let max_depth = 10
     let max_iter = (List.length optlib) * 8
     
@@ -302,11 +303,14 @@ module MCTS = struct
     let rnd_mv = random_opt
     let n_rnd_mvs = k_random_opts
 
+    let score result =
+        1.0 /. (result +. 1.0)
+    ;;
+
     let run_simulation node =
         let st = get_state node in
         let static_opts = st.moves in
-        let len = max_depth - (List.length static_opts) in
-        let result = List.hd (run_simulations [] max_depth 1 static_opts) in
+        let result = score ( snd (run_simulations [] max_depth 1 static_opts) ) in
         result
     ;;
     let available_moves () =
@@ -338,10 +342,10 @@ module MCTS = struct
                 (update_state node score), score
         | Explored (st, children) ->
                 let child = uct_select_child st children in
-                let child', score = next_move in
+                let child', score = next_move child in
                 let children' = replace_child children child child' in
                 let st' = get_state (update_state node score) in
-                Explored (st', children), score
+                Explored (st', children'), score
         | Unexplored (st, children, untried) ->
                 let new_child, untried', score = do_random_move node in
                 let st' = get_state (update_state node score) in
@@ -374,8 +378,12 @@ module MCTS = struct
                 let mv = move_of_node best_node in
                 mv :: choose_moves best_node (k-1)
     ;;
-end
+end ;;
 
+let compilation_cycle_mcts k = 
+    let rootnode = MCTS.Unexplored ( { visits = 0 ; score = 0.0 ; moves = [] }, [], [] ) in
+    MCTS.choose_moves rootnode k
+;;
 
 (* let rec hill_climbing_compilation_cycle  = 
 ;; *)
@@ -391,7 +399,8 @@ let usage () =
 ;;
 
 let rec parse_args args = match args with
-    | []               -> TreeSample
+    | []
+    | "--tree" :: []   -> TreeSample
     | "--random" :: [] -> Random
     | "--hill" :: []   -> HillClimb
     | "--mcts" :: []   -> MCTS
@@ -402,6 +411,9 @@ let main () =
     Random.self_init () ;
     let mode = parse_args ( List.tl ( Array.to_list Sys.argv)) in
     match mode with
+        | MCTS ->
+            let _ = compilation_cycle_mcts 10 in
+            exit 0 ;
         | TreeSample ->
             let _ = compilation_cycle optlib 10 [] in
             exit 0 ;
