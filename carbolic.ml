@@ -392,7 +392,10 @@ let usage () =
     List.iter print_string [
         "Usage: " ; Sys.argv.(0) ; " [args]\n" ;
         "Where [args] can be: \n" ;
+        "\t--tree        Use tree-descent with random sampling" ;
         "\t--random      Use random search" ;
+        "\t--hill        Use simple hill-climbing" ;
+        "\t--mcts        Use Monte-Carlo Tree Search" ;
         "Default search strategy is tree descent with sampling" ;
     ] ;
     exit 0;
