@@ -225,7 +225,7 @@ let rec dumb_hillclimb_compilation_cycle depth static_opts = match depth with
 
 type move = string
 type state = { visits : int ; score : float ; moves : move list }
-let max_iter = (List.length optlib) * 8
+let max_iter = (List.length optlib)
 let debug = true
 let max_depth = 10
     
@@ -381,19 +381,22 @@ module MCTS = struct (* this should be generalised using an Ocaml functor *)
                 let root' = fst (next_move root) in
                 uct root' (n-1)
     ;;
-    let rec choose_moves rootnode k =
-        match k with
+    let rec choose_moves rootnode iters depth =
+        match depth with
         | 0 -> []
         | _ -> 
-                let best_node = uct rootnode max_iter in
+                let best_node = uct rootnode iters in
                 let mv = move_of_node best_node in
-                mv :: choose_moves best_node (k-1)
+                mv :: choose_moves best_node iters (depth-1) 
     ;;
 end ;;
 
-let compilation_cycle_mcts k = 
-    let rootnode = MCTS.Unexplored ( { visits = 0 ; score = 0.0 ; moves = [] }, [], shuffle_list optlib ) in
-    let moves = MCTS.choose_moves rootnode k in
+let mcts_compilation_cycle depth = 
+    let rootnode = MCTS.Unexplored (
+        { visits = 0 ; score = 0.0 ; moves = [] }, 
+        [], MCTS.available_moves () 
+    ) in
+    let moves = MCTS.choose_moves rootnode max_iter depth in
     List.iter (Printf.printf "%s, ") moves ;
     print_newline () ;
     moves
@@ -403,9 +406,9 @@ let compilation_cycle_mcts k =
 ;; *)
 
 let usage () =
-    List.iter print_string [
-        "Usage: " ; Sys.argv.(0) ; " [args]\n" ;
-        "Where [args] can be: \n" ;
+    List.iter print_endline [
+        "Usage: " ; Sys.argv.(0) ; " [args]" ;
+        "Where [args] can be: " ;
         "\t--tree        Use tree-descent with random sampling" ;
         "\t--random      Use random search" ;
         "\t--hill        Use simple hill-climbing" ;
@@ -429,7 +432,7 @@ let main () =
     let mode = parse_args ( List.tl ( Array.to_list Sys.argv)) in
     match mode with
         | MCTS ->
-            let _ = compilation_cycle_mcts max_depth in
+            let _ = mcts_compilation_cycle max_depth in
             exit 0 ;
         | TreeSample ->
             let _ = compilation_cycle optlib 10 [] in
