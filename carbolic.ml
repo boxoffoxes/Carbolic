@@ -23,7 +23,7 @@ let optlib = [ "-adce" ; "-basicaa" ; "-basiccg" ; "-constmerge" ;
     "-tbaa" ; "-verify" ]
 ;;
 
-type mode = Random | TreeSample | HillClimb | MCTS | Other
+type mode = Random | TreeSample | HillClimb | MCTS
 
 exception NoResults
 
@@ -199,7 +199,7 @@ let rec new_static_opts results static_opts =
 ;;
 
 let rec compilation_cycle optlib depth static_opts = match depth with 
-    | 0 -> exit 0; 
+    | 0 -> (); 
     | _ -> 
         let simulate opt = run_simulations [] depth 50 (opt :: static_opts) in
         let results = List.map simulate optlib in
@@ -208,13 +208,13 @@ let rec compilation_cycle optlib depth static_opts = match depth with
 ;;
 
 let random_compilation_cycle depth n = match n with 
-    | 0 -> exit 0;
+    | 0 -> ();
     | _ ->
-            run_simulations [] depth n [] ;
+            ignore (run_simulations [] depth n []) ;
 ;;
 
 let rec dumb_hillclimb_compilation_cycle depth static_opts = match depth with
-    | 0 -> exit 0 ;
+    | 0 -> () ;
     | _ -> 
         let simulate opt = run_simulations [] 0 1 (opt :: static_opts) in
         let results = List.map simulate optlib in
@@ -225,7 +225,7 @@ let rec dumb_hillclimb_compilation_cycle depth static_opts = match depth with
 
 type move = string
 type state = { visits : int ; score : float ; moves : move list }
-let max_iter = (List.length optlib)
+let max_iter = 2000 (* (List.length optlib) * (List.length optlib) *)
 let debug = true
 let max_depth = 10
     
@@ -368,11 +368,14 @@ module MCTS = struct (* this should be generalised using an Ocaml functor *)
 
     let decide node =
         let children = get_children node in
-        let srtfun a b = compare (get_visits a) (get_visits b) in
-        List.hd ( List.rev (List.sort srtfun children) )
+        let srtfun a b = compare (get_visits b) (get_visits a) in
+        List.hd (List.sort srtfun children)
     ;;
 
     let rec uct root n =
+        print_endline "=====================================" ;
+        Printf.printf "  Iterations remaining: %d\n" n ;
+        print_endline "=====================================" ;
         match n with
         | 0 ->
                 if debug then show_tree root ;
@@ -399,7 +402,6 @@ let mcts_compilation_cycle depth =
     let moves = MCTS.choose_moves rootnode max_iter depth in
     List.iter (Printf.printf "%s, ") moves ;
     print_newline () ;
-    moves
 ;;
 
 (* let rec hill_climbing_compilation_cycle  = 
@@ -430,20 +432,22 @@ let rec parse_args args = match args with
 let main () = 
     Random.self_init () ;
     let mode = parse_args ( List.tl ( Array.to_list Sys.argv)) in
-    match mode with
+    let starttime = int_of_float (Unix.time () ) in
+    Printf.printf "Started at %d\n" starttime ;
+    let _ = match mode with
         | MCTS ->
-            let _ = mcts_compilation_cycle max_depth in
-            exit 0 ;
+            mcts_compilation_cycle max_depth
         | TreeSample ->
-            let _ = compilation_cycle optlib 10 [] in
-            exit 0 ;
+            compilation_cycle optlib 10 []
         | Random -> 
-            let _ = random_compilation_cycle 10 23500 in
-            exit 0 ;
+            random_compilation_cycle 10 23500
         | HillClimb ->
-            let _ = dumb_hillclimb_compilation_cycle 10 [] in
-            exit 0 ;
-        | _ -> usage () ;
+            dumb_hillclimb_compilation_cycle 10 []
+    in
+    let endtime = int_of_float (Unix.time () ) in
+    Printf.printf "Finished at %d\n" endtime ;
+    Printf.printf "Total run-time was %d\n" (endtime - starttime) ;
+    exit 0 ;
 ;;
 
 main () ;
