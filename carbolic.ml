@@ -78,9 +78,11 @@ let prepare dir =
 
 let compile opts =
     let optstr = String.concat " -optlo" (List.rev opts) in
-    let cmd = String.concat "" [ "make " ; "PASSES=\"-optlo" ; optstr ; "\"" ] in
+    let cmd = String.concat "" [ "ghc -O0 -o a.out -fllvm -fforce-recomp -optlo" ; optstr ; " countdown.hs" ] in
+    (* let cmd = String.concat "" [ "make " ; "PASSES=\"-optlo" ; optstr ; "\"" ] in *)
     let logfile = open_out "carbolic.log" in
-    output_string logfile optstr ;
+    print_endline cmd ;
+    output_string logfile cmd ;
     output_string logfile "\n" ;
     ignore ( Unix.system cmd ) ;
     close_out logfile ;
