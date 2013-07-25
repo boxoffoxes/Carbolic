@@ -24,16 +24,26 @@ let optlib = [ "-adce" ; "-basicaa" ; "-basiccg" ; "-constmerge" ;
 ;;
 
 type mode = Random | TreeSample | HillClimb | MCTS
+type settings = {
+    mutable max_depth : int ;
+    mutable max_iter  : int ;
+    mutable mode      : mode ;
+    mutable debug     : bool ;
+}
 
 exception NoResults
+
+let settings = {
+    max_depth = 10 ;
+    max_iter  = 2000 ;
+    mode = TreeSample ;
+    debug = false ;
+}
 
 let shuffle_list l =
     let srt _ _ = compare (Random.int 10) (Random.int 10) in
     List.sort srt l
 ;;
-
-
-
 
 let cksums = Hashtbl.create 1000
 
@@ -227,10 +237,10 @@ let rec dumb_hillclimb_compilation_cycle depth static_opts = match depth with
 
 type move = string
 type state = { visits : int ; score : float ; moves : move list }
-let max_iter = 2000 (* (List.length optlib) * (List.length optlib) *)
+(* let max_iter = 2000 (* (List.length optlib) * (List.length optlib) *)
 let debug = true
-let max_depth = 10
-    
+let max_depth = 10 *)
+
 module MCTS = struct (* this should be generalised using an Ocaml functor *)
     type mctree = 
         | Unexplored of state * mctree list * move list
@@ -316,7 +326,7 @@ module MCTS = struct (* this should be generalised using an Ocaml functor *)
     let run_simulation node =
         let st = get_state node in
         let static_opts = st.moves in
-        let to_depth = max_depth - (List.length static_opts) in
+        let to_depth = settings.max_depth - (List.length static_opts) in
         let result =
             try score ( snd (run_simulations [] to_depth 1 static_opts) ) with
             | NoResults -> 0.0
@@ -330,7 +340,7 @@ module MCTS = struct (* this should be generalised using an Ocaml functor *)
         let moves = mv :: st.moves in
         let state = { visits=0 ; score=0.0 ; moves = mv::st.moves } in
         match List.length moves with
-        | n when n == max_depth -> 
+        | n when n == settings.max_depth -> 
                 Terminal state
         | _ ->
                 Unexplored (state, [], available_moves ())
@@ -380,7 +390,7 @@ module MCTS = struct (* this should be generalised using an Ocaml functor *)
         print_endline "=====================================" ;
         match n with
         | 0 ->
-                if debug then show_tree root ;
+                if settings.debug then show_tree root ;
                 decide root
         | _ ->
                 let root' = fst (next_move root) in
@@ -401,7 +411,7 @@ let mcts_compilation_cycle depth =
         { visits = 0 ; score = 0.0 ; moves = [] }, 
         [], MCTS.available_moves () 
     ) in
-    let moves = MCTS.choose_moves rootnode max_iter depth in
+    let moves = MCTS.choose_moves rootnode settings.max_iter depth in
     List.iter (Printf.printf "%s, ") moves ;
     print_newline () ;
 ;;
@@ -422,23 +432,31 @@ let usage () =
     exit 0;
 ;;
 
-let rec parse_args args = match args with
-    | []
-    | "--tree" :: []   -> TreeSample
-    | "--random" :: [] -> Random
-    | "--hill" :: []   -> HillClimb
-    | "--mcts" :: []   -> MCTS
+let rec parse_args args = 
+    match args with
+    | [] -> ()
+    | "--depth" :: d :: args' ->
+            settings.max_depth <- int_of_string d ; parse_args args'
+    | "--iter"  :: i :: args' ->
+            settings.max_iter  <- int_of_string i ; parse_args args'
+
+    | "--tree" :: args'   -> settings.mode <- TreeSample ; parse_args args'
+    | "--random" :: args' -> settings.mode <- Random     ; parse_args args'
+    | "--hill" :: args'   -> settings.mode <- HillClimb  ; parse_args args'
+    | "--mcts" :: args'   -> settings.mode <- MCTS       ; parse_args args'
+
+    | "--debug" :: args'  -> settings.debug <- true      ; parse_args args'
     | _                -> usage () ;
 ;;
 
 let main () = 
     Random.self_init () ;
-    let mode = parse_args ( List.tl ( Array.to_list Sys.argv)) in
+    parse_args ( List.tl ( Array.to_list Sys.argv)) ;
     let starttime = int_of_float (Unix.time () ) in
     Printf.printf "Started at %d\n" starttime ;
-    let _ = match mode with
+    let _ = match settings.mode with
         | MCTS ->
-            mcts_compilation_cycle max_depth
+            mcts_compilation_cycle settings.max_depth
         | TreeSample ->
             compilation_cycle optlib 10 []
         | Random -> 
