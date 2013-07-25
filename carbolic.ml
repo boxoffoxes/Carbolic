@@ -29,6 +29,8 @@ type settings = {
     mutable max_iter  : int ;
     mutable mode      : mode ;
     mutable debug     : bool ;
+    mutable opt       : string ;
+    mutable filename  : string ;
 }
 
 exception NoResults
@@ -38,6 +40,8 @@ let settings = {
     max_iter  = 2000 ;
     mode = TreeSample ;
     debug = false ;
+    opt = "-O0" ;
+    filename = "" ;
 }
 
 let shuffle_list l =
@@ -67,10 +71,11 @@ let run_child_process args =
 ;;
 
 let prepare dir = 
+    let linktarget = "../" ^ settings.filename in
     try 
        Unix.mkdir dir 0o755 ;
         Unix.symlink "../Makefile" (String.concat "/" [dir ; "Makefile"] ) ;
-        Unix.symlink "../countdown.hs" (String.concat "/" [dir ; "countdown.hs"] ) ;
+        Unix.symlink linktarget (String.concat "/" [dir ; settings.filename] ) ;
         (*Unix.symlink "../unoptimised.ll" (String.concat "/" [dir ; "unoptimised.ll"] ) ;*)
     with 
     | Unix.Unix_error ( EEXIST, "mkdir", _ ) -> () ;
@@ -78,7 +83,7 @@ let prepare dir =
 
 let compile opts =
     let optstr = String.concat " -optlo" (List.rev opts) in
-    let cmd = String.concat "" [ "ghc -O1 -o a.out -fllvm -fforce-recomp -optlo" ; optstr ; " countdown.hs" ] in
+    let cmd = String.concat "" [ "ghc " ; settings.opt ; " -o a.out -fllvm -fforce-recomp -optlo" ; optstr ; " " ; settings.filename ] in
     (* let cmd = String.concat "" [ "make " ; "PASSES=\"-optlo" ; optstr ; "\"" ] in *)
     let logfile = open_out "carbolic.log" in
     print_endline cmd ;
@@ -421,7 +426,7 @@ let mcts_compilation_cycle depth =
 
 let usage () =
     List.iter print_endline [
-        "Usage: " ; Sys.argv.(0) ; " [args]" ;
+        "Usage: " ; Sys.argv.(0) ; " [args] <src>" ;
         "Where [args] can be: " ;
         "\t--tree        Use tree-descent with random sampling" ;
         "\t--random      Use random search" ;
@@ -439,19 +444,23 @@ let rec parse_args args =
             settings.max_depth <- int_of_string d ; parse_args args'
     | "--iter"  :: i :: args' ->
             settings.max_iter  <- int_of_string i ; parse_args args'
+    | "--opt" :: arg :: args' ->
+            settings.opt       <- arg ; parse_args args'
 
     | "--tree" :: args'   -> settings.mode <- TreeSample ; parse_args args'
     | "--random" :: args' -> settings.mode <- Random     ; parse_args args'
     | "--hill" :: args'   -> settings.mode <- HillClimb  ; parse_args args'
     | "--mcts" :: args'   -> settings.mode <- MCTS       ; parse_args args'
 
-    | "--debug" :: args'  -> settings.debug <- true      ; parse_args args'
-    | _                -> usage () ;
+    | "--debug" :: args'  -> settings.debug     <- true      ; parse_args args'
+    | filename :: []      -> settings.filename  <- filename  ; ()
+    | _                   -> usage () ;
 ;;
 
 let main () = 
     Random.self_init () ;
     parse_args ( List.tl ( Array.to_list Sys.argv)) ;
+    if settings.filename == "" then usage () ;
     let starttime = int_of_float (Unix.time () ) in
     Printf.printf "Started at %d\n" starttime ;
     let _ = match settings.mode with
