@@ -440,6 +440,8 @@ let usage () =
 let rec parse_args args = 
     match args with
     | [] -> ()
+    | "--help" :: _ | "-h" :: _ -> usage () ;
+
     | "--depth" :: d :: args' ->
             settings.max_depth <- int_of_string d ; parse_args args'
     | "--iter"  :: i :: args' ->
@@ -460,7 +462,7 @@ let rec parse_args args =
 let main () = 
     Random.self_init () ;
     parse_args ( List.tl ( Array.to_list Sys.argv)) ;
-    if settings.filename == "" then usage () ;
+    if settings.filename = "" then usage () ;
     let starttime = int_of_float (Unix.time () ) in
     Printf.printf "Started at %d\n" starttime ;
     let _ = match settings.mode with
