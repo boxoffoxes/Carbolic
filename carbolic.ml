@@ -1,5 +1,5 @@
 open Unix
-
+open Printf
 
 (*
  * Compile and benchmark unoptimised case
@@ -44,6 +44,10 @@ let settings = {
     filename = "" ;
 }
 
+let fail format =
+    ksprintf failwith format
+;;
+
 let shuffle_list l =
     let srt _ _ = compare (Random.int 10) (Random.int 10) in
     List.sort srt l
@@ -62,7 +66,7 @@ let run_child_process args =
     let pid = fork () in
     match pid with
     | 0 -> Unix.execv cmd args
-    | -1 -> raise ( Failure "Failed to run program!" )
+    | -1 -> failwith "Failed to run program!" 
     | _ -> 
             let (pid, status) = Unix.wait () in
             match status with
@@ -151,7 +155,7 @@ let benchmark binary =
         close_out fh ;
         exit 0 ; 
     )
-    | -1 -> raise ( Failure "Failed to fork a child process" )
+    | -1 -> failwith "Failed to fork a child process" 
     | _  -> ignore ( wait () ) ;
 ;;
 
@@ -263,7 +267,7 @@ module MCTS = struct (* this should be generalised using an Ocaml functor *)
         match node with
         | Unexplored (_, ch, _)
         | Explored   (_, ch)     -> ch
-        | Terminal    _          -> raise (Failure "No children")
+        | Terminal    _          -> failwith "No children"
     ;;
     let get_visits node =
         let st = get_state node in
@@ -358,7 +362,7 @@ module MCTS = struct (* this should be generalised using an Ocaml functor *)
                 let score = run_simulation child in
                 let child' = update_state child score in
                 child', untried', score
-        | _ -> raise ( Failure "Next move is only valid for Unexplored nodes" )
+        | _ -> failwith "Next move is only valid for Unexplored nodes" 
     ;;
     let rec next_move node =
         try
