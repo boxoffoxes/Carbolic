@@ -7,6 +7,16 @@ open Unix
  * 
  *)
 
+(* Todo: feature requests
+ *
+ *  - Optimisation library loading
+ *  - commandline option for specifying optimisation library
+ *  - Separate benchmarks and data files (to avoid 
+ *  - Better logging
+ *  - commandline options for depth
+ *  - alternative models to fixed-depth optimisation
+ *)
+
 
 let optlib = [ "-adce" ; "-basicaa" ; "-basiccg" ; "-constmerge" ;
     "-correlated-propagation" ; "-deadargelim" ; "-domtree" ; 
