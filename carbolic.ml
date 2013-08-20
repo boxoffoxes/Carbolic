@@ -1,5 +1,5 @@
 open Unix
-
+open Printf
 
 (*
  * Compile and benchmark unoptimised case
@@ -39,6 +39,8 @@ type settings = {
     mutable max_iter  : int ;
     mutable mode      : mode ;
     mutable debug     : bool ;
+    mutable opt       : string ;
+    mutable filename  : string ;
 }
 
 exception NoResults
@@ -48,7 +50,13 @@ let settings = {
     max_iter  = 2000 ;
     mode = TreeSample ;
     debug = false ;
+    opt = "-O0" ;
+    filename = "" ;
 }
+
+let fail format =
+    ksprintf failwith format
+;;
 
 let shuffle_list l =
     let srt _ _ = compare (Random.int 10) (Random.int 10) in
@@ -68,7 +76,7 @@ let run_child_process args =
     let pid = fork () in
     match pid with
     | 0 -> Unix.execv cmd args
-    | -1 -> raise ( Failure "Failed to run program!" )
+    | -1 -> failwith "Failed to run program!" 
     | _ -> 
             let (pid, status) = Unix.wait () in
             match status with
@@ -77,10 +85,11 @@ let run_child_process args =
 ;;
 
 let prepare dir = 
+    let linktarget = "../" ^ settings.filename in
     try 
        Unix.mkdir dir 0o755 ;
         Unix.symlink "../Makefile" (String.concat "/" [dir ; "Makefile"] ) ;
-        Unix.symlink "../countdown.hs" (String.concat "/" [dir ; "countdown.hs"] ) ;
+        Unix.symlink linktarget (String.concat "/" [dir ; settings.filename] ) ;
         (*Unix.symlink "../unoptimised.ll" (String.concat "/" [dir ; "unoptimised.ll"] ) ;*)
     with 
     | Unix.Unix_error ( EEXIST, "mkdir", _ ) -> () ;
@@ -88,7 +97,7 @@ let prepare dir =
 
 let compile opts =
     let optstr = String.concat " -optlo" (List.rev opts) in
-    let cmd = String.concat "" [ "ghc -O0 -o a.out -fllvm -fforce-recomp -optlo" ; optstr ; " countdown.hs" ] in
+    let cmd = String.concat "" [ "ghc " ; settings.opt ; " -o a.out -fllvm -fforce-recomp -optlo" ; optstr ; " " ; settings.filename ] in
     (* let cmd = String.concat "" [ "make " ; "PASSES=\"-optlo" ; optstr ; "\"" ] in *)
     let logfile = open_out "carbolic.log" in
     print_endline cmd ;
@@ -156,7 +165,7 @@ let benchmark binary =
         close_out fh ;
         exit 0 ; 
     )
-    | -1 -> raise ( Failure "Failed to fork a child process" )
+    | -1 -> failwith "Failed to fork a child process" 
     | _  -> ignore ( wait () ) ;
 ;;
 
@@ -268,7 +277,7 @@ module MCTS = struct (* this should be generalised using an Ocaml functor *)
         match node with
         | Unexplored (_, ch, _)
         | Explored   (_, ch)     -> ch
-        | Terminal    _          -> raise (Failure "No children")
+        | Terminal    _          -> failwith "No children"
     ;;
     let get_visits node =
         let st = get_state node in
@@ -363,7 +372,7 @@ module MCTS = struct (* this should be generalised using an Ocaml functor *)
                 let score = run_simulation child in
                 let child' = update_state child score in
                 child', untried', score
-        | _ -> raise ( Failure "Next move is only valid for Unexplored nodes" )
+        | _ -> failwith "Next move is only valid for Unexplored nodes" 
     ;;
     let rec next_move node =
         try
@@ -431,7 +440,7 @@ let mcts_compilation_cycle depth =
 
 let usage () =
     List.iter print_endline [
-        "Usage: " ; Sys.argv.(0) ; " [args]" ;
+        "Usage: " ; Sys.argv.(0) ; " [args] <src>" ;
         "Where [args] can be: " ;
         "\t--tree        Use tree-descent with random sampling" ;
         "\t--random      Use random search" ;
@@ -445,23 +454,29 @@ let usage () =
 let rec parse_args args = 
     match args with
     | [] -> ()
+    | "--help" :: _ | "-h" :: _ -> usage () ;
+
     | "--depth" :: d :: args' ->
             settings.max_depth <- int_of_string d ; parse_args args'
     | "--iter"  :: i :: args' ->
             settings.max_iter  <- int_of_string i ; parse_args args'
+    | "--opt" :: arg :: args' ->
+            settings.opt       <- arg ; parse_args args'
 
     | "--tree" :: args'   -> settings.mode <- TreeSample ; parse_args args'
     | "--random" :: args' -> settings.mode <- Random     ; parse_args args'
     | "--hill" :: args'   -> settings.mode <- HillClimb  ; parse_args args'
     | "--mcts" :: args'   -> settings.mode <- MCTS       ; parse_args args'
 
-    | "--debug" :: args'  -> settings.debug <- true      ; parse_args args'
-    | _                -> usage () ;
+    | "--debug" :: args'  -> settings.debug     <- true      ; parse_args args'
+    | filename :: []      -> settings.filename  <- filename  ; ()
+    | _                   -> usage () ;
 ;;
 
 let main () = 
     Random.self_init () ;
     parse_args ( List.tl ( Array.to_list Sys.argv)) ;
+    if settings.filename = "" then usage () ;
     let starttime = int_of_float (Unix.time () ) in
     Printf.printf "Started at %d\n" starttime ;
     let _ = match settings.mode with
