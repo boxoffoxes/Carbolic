@@ -15,6 +15,9 @@ open Printf
  *  - Better logging
  *  - commandline options for depth
  *  - alternative models to fixed-depth optimisation
+ *  - functorise search strategies
+ *  - split source file
+ *  - modularise compiler support
  *)
 
 
