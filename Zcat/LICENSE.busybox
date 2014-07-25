@@ -1,0 +1,31 @@
+Original release code (unless otherwise noted)
+Copyright 1995, 1996 Bruce Perens <bruce@pixar.com>
+
+mkswap
+Copyright 1991 Linus Torvalds
+
+tiny-ls(ls)
+Copyright 1996 Brian Candler <B.Candler@pobox.com>
+
+tarcat, loadkmap, various fixes, Debian maintenance
+Copyright 1998 Enrique Zanardi <ezanardi@ull.es>
+
+more(v2), makedevs, dutmp, modularization, auto links file, 
+various fixes, Linux Router Project maintenance
+Copyright 1998 Dave Cinege <dcinege@psychosis.com>	
+
+mini-gzip(gzip), mini-netcat(mnc)
+Copyright 1998 Charles P. Wright <cpwright@villagenet.com>
+
+
+bunches of stuff as noted in header files
+Copyright (C) 1999 by Lineo, inc. and written by 
+Erik Andersen <andersen@lineo.com>, <andersee@debian.org>
+
+copyright and license info.
+
+This program suite may be distributed under the GNU General Public License.
+
+
+Please send patches, suggestions, insults, and bribes to <andersee@debian.org>.
+
