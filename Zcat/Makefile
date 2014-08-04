@@ -1,9 +1,11 @@
+CC=clang
 OPT=-O2
+PASSES=
 
 all : zcat
 
 % : %.c busybox.def.h internal.h
-	gcc $(OPT) -o $@ $<
+	$(CC) $(OPT) -o $@ $<
 
 
 clean :

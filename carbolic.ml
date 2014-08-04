@@ -438,26 +438,38 @@ let mcts_compilation_cycle depth =
     print_newline () ;
 ;;
 
-(* let rec hill_climbing_compilation_cycle  = 
-;; *)
 
-let usage () =
+let rec accepted_args = [
+    (* long opt , shrt, arg?  , function                               , usage text *)
+    ("--help"   , "-h", false , usage                                  , "Print this help text and exit") ;
+    ("--depth"  , ""  , true  , (fun arg -> settings.max_depth <- int_of_string arg), "Set max length of pass sequence to <arg>") ;
+    ("--iter"   , ""  , true  , (fun arg -> settings.max_iter <- int_of_string arg) , "Set maximum iterations to <arg>") ;
+    ("--opt"    , ""  , true  , (fun arg -> settings.opt      <- arg)  , "Pass <arg> to the compiler") ;
+
+    ("--tree"   , ""  , false , (fun arg -> settings.mode <- TreeSample), "Use tree search with random sampling (default behaviour)" ) ;
+    ("--random" , ""  , false , (fun arg -> settings.mode <- Random)    , "Use random search" ) ;
+    ("--hill"   , ""  , false , (fun arg -> settings.mode <- HillClimb) , "Use simple hill-climbing") ;
+    ("--mcts"   , ""  , false , (fun arg -> settings.mode <- MCTS)      , "Use Monte-Carlo Tree Search") ;
+
+    ("--debug"  , ""  , false , (fun arg -> settings.debug <- true)     , "Switch on debugging output" ) ;
+] and usage _ =
+    let string_of_arg (long, short, takes_arg, _, text) =
+        let arg = if takes_arg then "<arg>" else "" in
+        let sht = match short with | "" -> "" | _ -> sprintf "%s %s" short arg in
+        printf "\t%s %s\t%s\t%s\n" long arg sht text
+    in
     List.iter print_endline [
         "Usage: " ; Sys.argv.(0) ; " [args] <src>" ;
         "Where [args] can be: " ;
-        "\t--tree        Use tree-descent with random sampling" ;
-        "\t--random      Use random search" ;
-        "\t--hill        Use simple hill-climbing" ;
-        "\t--mcts        Use Monte-Carlo Tree Search" ;
-        "Default search strategy is tree descent with sampling" ;
     ] ;
+    List.iter string_of_arg accepted_args ;
     exit 0;
 ;;
 
 let rec parse_args args = 
     match args with
     | [] -> ()
-    | "--help" :: _ | "-h" :: _ -> usage () ;
+    | "--help" :: _ | "-h" :: _ -> usage "" ;
 
     | "--depth" :: d :: args' ->
             settings.max_depth <- int_of_string d ; parse_args args'
@@ -473,13 +485,13 @@ let rec parse_args args =
 
     | "--debug" :: args'  -> settings.debug     <- true      ; parse_args args'
     | filename :: []      -> settings.filename  <- filename  ; ()
-    | _                   -> usage () ;
+    | _                   -> usage "" ;
 ;;
 
 let main () = 
     Random.self_init () ;
     parse_args ( List.tl ( Array.to_list Sys.argv)) ;
-    if settings.filename = "" then usage () ;
+    if settings.filename = "" then usage "" ;
     let starttime = int_of_float (Unix.time () ) in
     Printf.printf "Started at %d\n" starttime ;
     let _ = match settings.mode with
