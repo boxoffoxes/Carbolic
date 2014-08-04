@@ -5,7 +5,7 @@ PASSES=
 all : zcat
 
 % : %.c busybox.def.h internal.h
-	$(CC) $(OPT) -o $@ $<
+	$(CC) $(OPT) $(PASSES) -o $@ $<
 
 
 clean :
